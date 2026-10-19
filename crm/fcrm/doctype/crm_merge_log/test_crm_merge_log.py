@@ -45,7 +45,7 @@ class TestCRMMergeLog(IntegrationTestCase):
 				}
 			).insert(ignore_permissions=True)
 
-	def test_merge_log_is_read_only_for_sales_roles(self):
+	def test_sales_roles_cannot_access_merge_log(self):
 		lead_a = self._create_lead(first_name="A", email="a_ro_log@test.com")
 		lead_b = self._create_lead(first_name="B", email="b_ro_log@test.com")
 		log = frappe.get_doc(
@@ -60,11 +60,8 @@ class TestCRMMergeLog(IntegrationTestCase):
 		for role in ("Sales User", "Sales Manager"):
 			with self.subTest(role=role):
 				frappe.set_user(make_user(f"merge-log-{role.lower().replace(' ', '-')}@example.com", role))
-				self.assertTrue(frappe.has_permission("CRM Merge Log", "read", log.name))
-				doc = frappe.get_doc("CRM Merge Log", log.name)
-				doc.field_snapshot = "{}"
 				with self.assertRaises(frappe.PermissionError):
-					doc.save()
+					frappe.get_doc("CRM Merge Log", log.name).check_permission("read")
 				frappe.set_user("Administrator")
 
 
