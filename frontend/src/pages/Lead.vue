@@ -36,6 +36,9 @@
           </Button>
         </template>
       </Dropdown>
+      <Dropdown :options="moreActions">
+        <Button icon="more-horizontal" variant="ghost" />
+      </Dropdown>
       <Tooltip
         :disabled="!isLeadConversionDisabled"
         :text="__('Cannot convert a lost lead to deal')"
@@ -242,6 +245,11 @@
     doctype="CRM Lead"
     :document="document"
   />
+  <MergeLeadModal
+    v-if="showMergeModal"
+    v-model="showMergeModal"
+    :leadId="leadId"
+  />
 </template>
 <script setup>
 import DeleteLinkedDocModal from '@/components/DeleteLinkedDocModal.vue'
@@ -271,6 +279,7 @@ import SLASection from '@/components/SLASection.vue'
 import CustomActions from '@/components/CustomActions.vue'
 import ConvertToDealModal from '@/components/Modals/ConvertToDealModal.vue'
 import EnrichFromWebsite from '@/components/EnrichFromWebsite.vue'
+import MergeLeadModal from '@/components/Modals/MergeLeadModal.vue'
 import {
   openWebsite,
   setupCustomizations,
@@ -300,6 +309,7 @@ import {
   call,
   usePageMeta,
   toast,
+  ErrorMessage,
 } from 'frappe-ui'
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
@@ -326,6 +336,7 @@ const errorMessage = ref('')
 const showDeleteLinkedDocModal = ref(false)
 const showConvertToDealModal = ref(false)
 const showFilesUploader = ref(false)
+const showMergeModal = ref(false)
 
 const {
   triggerOnChange,
@@ -717,4 +728,22 @@ function reloadResources(data) {
     sections.reload()
   }
 }
+
+watch(
+  () => document.doc,
+  (doc) => {
+    if (doc?.merged_into && doc.merged_into !== props.leadId) {
+      router.push({ name: 'Lead', params: { leadId: doc.merged_into } })
+    }
+  },
+)
+
+const moreActions = computed(() => [
+  {
+    label: __('Merge Lead'),
+    onClick: () => {
+      showMergeModal.value = true
+    },
+  },
+])
 </script>
