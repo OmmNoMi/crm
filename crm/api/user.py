@@ -252,3 +252,42 @@ def update_module_in_user(user, module):
 
 	if block_modules:
 		user.set("block_modules", block_modules)
+
+
+@frappe.whitelist()
+def get_sending_accounts() -> list[dict]:
+	"""Email accounts the session user can pick as From in the email composer.
+
+	The composer used to read these off the User document, but `User.user_emails`
+	is permlevel 1, which only System Manager can read. For everyone else Frappe
+	strips the table from the document, so the From choice never showed. This
+	returns the session user's own rows only, so no other user's data is exposed.
+
+	Outgoing is checked on the Email Account itself: the row's `enable_outgoing`
+	is a fetched copy that goes stale when the account is changed later.
+	"""
+	user = frappe.session.user
+	if user == "Guest":
+		return []
+
+	rows = frappe.get_all(
+		"User Email",
+		filters={"parenttype": "User", "parentfield": "user_emails", "parent": user},
+		fields=["email_account", "email_id"],
+		order_by="idx asc",
+	)
+	if not rows:
+		return []
+
+	outgoing = set(
+		frappe.get_all(
+			"Email Account",
+			filters={"name": ["in", [row.email_account for row in rows]], "enable_outgoing": 1},
+			pluck="name",
+		)
+	)
+	return [
+		{"email_account": row.email_account, "email_id": row.email_id}
+		for row in rows
+		if row.email_account in outgoing and row.email_id
+	]
