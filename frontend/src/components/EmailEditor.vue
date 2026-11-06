@@ -209,7 +209,7 @@ import {
   fullToolbar,
   uploadFile,
 } from '@/components/editor/config'
-import { FileUploader, call, FormControl } from 'frappe-ui'
+import { FileUploader, call, createResource, FormControl } from 'frappe-ui'
 import {
   Editor,
   EditorContent,
@@ -217,7 +217,7 @@ import {
   EditorTableMenu,
 } from 'frappe-ui/editor'
 import { useTelemetry } from '@framework/ui/telemetry'
-import { useDocument } from '@/data/document'
+import { buildFromOptions } from '@/utils/emailFrom'
 import { validateEmail, submitShortcutLabel } from '@/utils'
 import Paragraph from '@tiptap/extension-paragraph'
 import { ref, computed, nextTick, inject, watch } from 'vue'
@@ -260,7 +260,13 @@ const content = defineModel('content', { type: String, default: '' })
 
 const { capture } = useTelemetry()
 const { user: sessionUser } = inject('session')
-const { document: user } = useDocument('User', sessionUser)
+// Not read off the User document: its email accounts table is permlevel 1,
+// readable only by System Manager, so for everyone else it comes back empty.
+const sendingAccounts = createResource({
+  url: 'crm.api.user.get_sending_accounts',
+  cache: ['sendingAccounts', sessionUser],
+  auto: true,
+})
 
 const textEditor = ref(null)
 const cc = ref(false)
@@ -280,22 +286,7 @@ const extensions = buildEditorExtensions({
   extra: [CustomParagraph],
 })
 
-const from = computed(() => {
-  if (!user.doc || !user.doc.user_emails?.length) return []
-  // accounts without outgoing can't send; the backend would fall back to the default account
-  let emails = user.doc.user_emails
-    .filter((e) => e.enable_outgoing)
-    .map((e) => {
-      return {
-        label: e.email_account + ' <' + e.email_id + '>',
-        value: e.email_id,
-      }
-    })
-
-  if (emails.length == 1 && emails[0].email_id === sessionUser) return []
-
-  return emails
-})
+const from = computed(() => buildFromOptions(sendingAccounts.data, sessionUser))
 
 const replyAddresses = ref([])
 
