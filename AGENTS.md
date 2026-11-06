@@ -72,6 +72,21 @@ yarn test          # watch mode
 - Only pure utility functions are unit-tested (no Vue component tests yet)
 - Add tests in `tests/unit/` when adding pure logic to `src/utils/`
 
+## Frappe gotchas
+
+- **Permlevel fields vanish from `useDocument` for non-admins.** Frappe strips
+  fields above permlevel 0 that the user's roles can't read before sending the
+  document. `User.user_emails` (and `roles`, `api_key`, `reset_password_key`)
+  is permlevel 1, System Manager only, so reading it off
+  `useDocument('User', me)` works for admins and silently returns nothing for
+  Sales users. The email composer's From list did this and never showed for
+  them. Serve the session user's own rows from a whitelisted method instead
+  (`crm.api.user.get_sending_accounts`); don't open permlevel 1 to sales roles.
+  `Settings → Profile → Email` (`UserEmailSettings.vue`) still reads the table
+  this way. Upstream frappe/crm has the same code: candidate upstream fix.
+- **Fetched copies go stale.** `User Email.enable_outgoing` is
+  `fetch_from email_account.enable_outgoing`; check the Email Account itself.
+
 ---
 
 ## Commit style
